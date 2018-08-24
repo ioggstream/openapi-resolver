@@ -8,7 +8,7 @@ with open('requirements.txt') as f:
 
 setuptools.setup(
     name="openapi_resolver",
-    version="0.0.1a2",
+    version="0.0.2",
     author="Roberto Polli",
     author_email="robipolli@gmail.com",
     description="Resolve and bundle openapi v3 specs.",

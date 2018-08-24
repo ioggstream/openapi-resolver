@@ -56,6 +56,14 @@ def my_represent_scalar(self, tag, value, style=None):
     return node
 
 
+class NoAnchorDumper(yaml.dumper.SafeDumper):
+    """A yaml Dumper that does not replace duplicate entries
+       with yaml anchors.
+    """
+    def ignore_aliases(self, *args):
+        return True
+
+
 class OpenapiResolver(object):
     """Resolves an OpenAPI v3 spec file replacing
        yaml-references and json-$ref from 
@@ -134,20 +142,21 @@ class OpenapiResolver(object):
         return _yaml
 
     def dump(self, remove_tags=('x-commons',)):
+        """Dump the OpenAPI spec removing yaml anchors.
+
+           Anchor removal is done via NoAnchorDumper.
+        """
         openapi_tags = ('openapi', 'info',  'servers',
                         'tags', 'paths', 'components')
 
-        # Resolve references in yaml file.
-        yaml.Dumper.ignore_aliases = lambda *args: True
-
         # Dump long lines as "|".
-        yaml.representer.BaseRepresenter.represent_scalar = my_represent_scalar
+        yaml.representer.SafeRepresenter.represent_scalar = my_represent_scalar
 
         openapi = deepcopy(self.openapi)
 
         # If it's not a dict, just dump the standard yaml
         if not isinstance(openapi, dict):
-            return yaml.safe_dump(openapi, default_flow_style=False, allow_unicode=True)
+            return yaml.dump(openapi, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
 
         # Eventually remove some tags, eg. containing references and aliases.
         for tag in remove_tags:
@@ -163,8 +172,8 @@ class OpenapiResolver(object):
 
         content = ""
         for k in sorted_keys:
-            content += yaml.safe_dump(
-                {k: openapi[k]}, default_flow_style=False, allow_unicode=True)
+            content += yaml.dump(
+                {k: openapi[k]}, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
 
         return content
 

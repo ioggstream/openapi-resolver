@@ -1,4 +1,5 @@
-from openapi_resolver import *
+from openapi_resolver import OpenapiResolver
+
 
 def test_traverse():
     oat = {
@@ -58,7 +59,7 @@ def test_dump():
                 }
             }
         }
-            
+
     }
     resolver = OpenapiResolver(oat)
     resolver.resolve()
@@ -66,3 +67,55 @@ def test_dump():
     assert 'x-commons' not in resolver.dump()
 
 
+def test_dump_noanchor():
+    oat = {'/organization_list': {'get': {'description': 'List or search all datasets\n',
+   'operationId': 'listOrgs',
+   'responses': {'200': {'$ref': '#/components/responses/CkanResponse'},
+    '400': {'$ref': '#/components/responses/400BadRequest'},
+    '429': {'$ref': '#/components/responses/429TooManyRequests'},
+    '503': {'$ref': '#/components/responses/503ServiceUnavailable'},
+    'default': {'$ref': '#/components/responses/default'}},
+   'summary': 'List all groups within given parameters',
+   'tags': ['public']}},
+ '/package_list': {'get': {'description': 'List or search all datasets\n',
+   'operationId': 'listInventory',
+   'responses': {'200': {'$ref': '#/components/responses/CkanResponse'},
+    '400': {'$ref': '#/components/responses/400BadRequest'},
+    '429': {'$ref': '#/components/responses/429TooManyRequests'},
+    '503': {'$ref': '#/components/responses/503ServiceUnavailable'},
+    'default': {'$ref': '#/components/responses/default'}},
+   'summary': 'List all datasets within given limit',
+   'tags': ['public']}},
+ '/package_search': {'get': {'description': 'List or search all datasets\n',
+   'operationId': 'searchInventory',
+   'responses': {'200': {'$ref': '#/components/responses/CkanResponse'},
+    '400': {'$ref': '#/components/responses/400BadRequest'},
+    '409': {'description': 'Conflict (can result e.g. from incorrectly formatted solr query)'},
+    '429': {'$ref': '#/components/responses/429TooManyRequests'},
+    '503': {'$ref': '#/components/responses/503ServiceUnavailable'},
+    'default': {'$ref': '#/components/responses/default'}},
+   'summary': 'Search among all datasets',
+   'tags': ['public']}},
+ '/package_show': {'get': {'description': 'List or search all datasets\n',
+   'operationId': 'showInventory',
+   'responses': {'200': {'$ref': '#/components/responses/CkanResponse'},
+    '400': {'$ref': '#/components/responses/400BadRequest'},
+    '429': {'$ref': '#/components/responses/429TooManyRequests'},
+    '503': {'$ref': '#/components/responses/503ServiceUnavailable'},
+    'default': {'$ref': '#/components/responses/default'}},
+   'summary': 'Get details of one package',
+   'tags': ['public']}},
+ '/user_list': {'get': {'description': 'List or search all datasets\n',
+   'operationId': 'listUsers',
+   'responses': {200: {'$ref': '#/components/responses/CkanResponse'},
+    '400': {'$ref': '#/components/responses/400BadRequest'},
+    '429': {'$ref': '#/components/responses/429TooManyRequests'},
+    '503': {'$ref': '#/components/responses/503ServiceUnavailable'},
+    'default': {'$ref': '#/components/responses/default'}},
+   'summary': 'List all groups within given parameters',
+   'tags': ['consumers']}}}
+
+    resolver = OpenapiResolver(oat)
+    resolver.resolve()
+    print(resolver.dump())
+    assert '*id' not in resolver.dump()
