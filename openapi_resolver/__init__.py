@@ -6,8 +6,9 @@
 """
 from __future__ import print_function
 from sys import argv, stdout
+
 import yaml
-from six.moves.urllib.parse import urldefrag
+from six.moves.urllib.parse import urldefrag, urljoin
 from six.moves.urllib.request import urlopen
 import logging
 from collections import defaultdict
@@ -21,7 +22,8 @@ ROOT_NODE = object()
 COMPONENTS_MAP = {
     "schema": "schemas",
     "headers": "headers",
-    "parameters": "parameters"
+    "parameters": "parameters",
+    "responses": "responses"
 }
 
 
@@ -80,6 +82,23 @@ class OpenapiResolver(object):
         self.traverse(self.openapi, cb=self.resolve_node)
         return self.openapi
 
+    def set_node_context(self, key, node):
+        if key != '$ref':
+            return False
+
+        if node.startswith("#/"):  # local reference
+            return False
+
+        if node.startswith("http"):  # url reference
+            host, fragment = urldefrag(node)
+            self.context = host
+            return True
+
+        # Remote reference should use previous
+        #  context. Better should be to track
+        #  nodes with their context.
+        return True
+
     def traverse(self, node, key=ROOT_NODE, parents=None, cb=print):
         """ Recursively call nested elements."""
 
@@ -99,24 +118,36 @@ class OpenapiResolver(object):
 
         # Resolve HTTP references adding fragments
         # to 'schema', 'headers' or 'parameters'
-        if key == '$ref' and node.startswith("http"):
+        if self.set_node_context(key, node):
             ancestor, needle = parents[-3:-1]
-            # log.info(f"replacing: {needle} in {ancestor} with ref {node}")
+            granny = parents[0] if isinstance(parents[0], str) else None
+            # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Granny is {granny}")
             ancestor[needle] = cb(key, node)
 
+            # We need to check both `needle` and `granny`
+            # because $ref appears in `schema` and `headers`
+            # at different nesting levels.
+            needle_alias = None
+            if needle in COMPONENTS_MAP:
+                needle_alias = COMPONENTS_MAP[needle]
+            elif granny in COMPONENTS_MAP:
+                needle_alias = COMPONENTS_MAP[granny]
+
             # Use a pre and post traversal functions.
-            # - before: append the reference to yaml_components
+            # - before: append the reference to yaml_components.
             # - traverse
             # - after: deepcopy the resulting item in the yaml_components
             #          then replace it with the reference in the specs
-            if needle in COMPONENTS_MAP:
+            if needle_alias:
+                # log.info(f"needle {needle} in components_map.")
                 host, fragment = urldefrag(node)
                 fragment = fragment.strip("/")
-                needle_alias = COMPONENTS_MAP[needle]
                 self.yaml_components[needle_alias][fragment] = ancestor[needle]
+
             if isinstance(ancestor[needle], (dict, list)):
                 self.traverse(ancestor[needle], key, parents, cb)
-            if needle in COMPONENTS_MAP:
+
+            if needle_alias:
                 # Now the node is fully resolved. I can replace it with the
                 # Deepcopy
                 self.yaml_components[needle_alias][
@@ -138,6 +169,8 @@ class OpenapiResolver(object):
 
     def resolve_node(self, key, node):
         # log.info(f"Resolving {node}")
+        if not node.startswith('http'):
+            node = urljoin(self.context, node)
         _yaml = self.get_yaml_reference(node)
         return _yaml
 
@@ -162,6 +195,16 @@ class OpenapiResolver(object):
         for tag in remove_tags:
             if tag in openapi:
                 del openapi[tag]
+
+        # Add resolved schemas.
+        # XXX: check if the schema hash is the same in case
+        #      of multiple entries.
+        components = openapi.setdefault('components', {})
+        for k, items in self.yaml_components.items():
+            if k not in components:
+                components[k] = {}
+
+            components[k].update(items)
 
         # Order yaml keys for a nice
         # dumping.

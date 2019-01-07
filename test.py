@@ -1,4 +1,31 @@
 from openapi_resolver import OpenapiResolver
+import yaml
+from nose import SkipTest
+
+
+@SkipTest
+def test_resolve_file():
+    oat = yaml.load(open('tests/simple.yaml').read())
+    resolver = OpenapiResolver(oat)
+    resolver.resolve()
+
+    out = yaml.load(resolver.dump())
+    with open('tests/simple.out.yaml', 'w') as fh:
+        fh.write(resolver.dump())
+    assert 'Problem' in out['components']['schemas']
+    assert 'Retry-After' in out['components']['headers']
+
+
+def test_resolve_relative():
+    oat = {'429TooManyRequests': {
+        '$ref': 'https://raw.githubusercontent.com/teamdigitale/openapi/1-reorganize-repo/docs/responses/v3.yaml#/429TooManyRequests'}}
+    resolver = OpenapiResolver(oat)
+    resolver.resolve()
+    assert 'schemas' in resolver.yaml_components
+    assert 'Problem' in resolver.yaml_components['schemas']
+    assert 'headers' in resolver.yaml_components
+    assert 'Retry-After' in resolver.yaml_components['headers']
+    print(resolver.dump())
 
 
 def test_traverse():
