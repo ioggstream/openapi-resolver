@@ -1,0 +1,24 @@
+# Throttling headers.
+X-RateLimit-Limit:
+  description: The number of allowed requests in the current period
+  schema:
+    type: integer
+    format: int32
+X-RateLimit-Remaining:
+  description: The number of remaining requests in the current period
+  schema:
+    type: integer
+    format: int32
+X-RateLimit-Reset:
+  description: The number of seconds left in the current period
+  schema:
+    type: integer
+    format: int32
+Retry-After:
+    description: |-
+      Retry contacting the endpoint *at least* after seconds.
+      See https://tools.ietf.org/html/rfc7231#section-7.1.3
+    schema:
+      type: integer
+      format: int32
+

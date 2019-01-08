@@ -1,0 +1,6 @@
+citizen:
+  name: citizen
+  in: query
+  description: testme
+  schema:
+    $ref: ../schemas/person.yaml#/Person
