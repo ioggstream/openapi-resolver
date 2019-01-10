@@ -263,3 +263,9 @@ class OpenapiResolver(object):
 
     def dump_yaml(self, *args, **kwargs):
         return yaml.load(self.dump(*args, **kwargs))
+
+    @staticmethod
+    def yaml_dump_pretty(openapi):
+        # Dump long lines as "|".
+        yaml.representer.SafeRepresenter.represent_scalar = my_represent_scalar
+        return yaml.dump(openapi, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
