@@ -1,0 +1,7 @@
+test_resolve_local:
+  400BadRequest:
+    content:
+      application/problem+json:
+        schema:
+          $ref: ../tests/problem.yaml#/Problem
+    description: Bad Request

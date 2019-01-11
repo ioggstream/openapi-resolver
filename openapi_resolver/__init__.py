@@ -5,14 +5,13 @@
     This object will be removed before serialization.
 """
 from __future__ import print_function
-from sys import argv, stdout
-
+from pathlib import Path
 import yaml
 from six.moves.urllib.parse import urldefrag, urljoin
 from six.moves.urllib.request import urlopen
 import logging
 from collections import defaultdict
-from os.path import join
+from os.path import join, dirname
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -58,6 +57,13 @@ def my_represent_scalar(self, tag, value, style=None):
     return node
 
 
+def open_file_or_url(host):
+    if host.startswith("http"):
+        return urlopen(host).read()
+    with open(host) as fh:
+        return fh.read()
+
+
 class NoAnchorDumper(yaml.dumper.SafeDumper):
     """A yaml Dumper that does not replace duplicate entries
        with yaml anchors.
@@ -72,9 +78,11 @@ class OpenapiResolver(object):
        the web.
     """
 
-    def __init__(self, openapi):
+    def __init__(self, openapi, context=None):
         self.openapi = deepcopy(openapi)
         # Global variables used by the parser.
+        self.context = context
+        self.is_subschema = False
         self.yaml_cache = {}
         self.yaml_components = defaultdict(dict)
 
@@ -94,10 +102,50 @@ class OpenapiResolver(object):
             self.context = host
             return True
 
+        if node.startswith("file://"):
+            raise NotImplementedError
+
+        host, fragment = urldefrag(node)
+        if self.context:
+            if self.context.startswith("http"):
+                p = urljoin(self.context, host)
+                # log.info(f"trying to set context {p}. Was {self.context}. host is: {host}.")
+                self.context = p
+                return True
+
+            p = Path(self.context).parent.joinpath(host)
+            # log.info(f"trying to set context {p}. Was {self.context}. host is: {host}. resolved is {p.resolve()}")
+            if p.is_file():
+                self.context = str(p.resolve())
+                return True
+            else:
+                log.warning("can't set context %r. Retains %r", p, self.context)
+
         # Remote reference should use previous
         #  context. Better should be to track
         #  nodes with their context.
         return True
+
+    def get_component_name(self, needle, parents):
+        # We need to check both `needle` and `granny`
+        # because $ref appears in `schema` and `headers`
+        # at different nesting levels.
+        needle_alias = None
+        granny = parents[0] if isinstance(parents[0], str) else None
+        if needle in COMPONENTS_MAP:
+            needle_alias = COMPONENTS_MAP[needle]
+        elif granny in COMPONENTS_MAP:
+            needle_alias = COMPONENTS_MAP[granny]
+
+        # $ref under `schemas` should be always treated
+        #  as `schemas` and added to components.
+        #  Reset is_subschema when needle_alias changes.
+        if needle_alias == 'schemas':
+            self.is_subschema = True
+        elif needle_alias is not None:
+            self.is_subschema = False
+
+        return 'schemas' if self.is_subschema else needle_alias
 
     def traverse(self, node, key=ROOT_NODE, parents=None, cb=print):
         """ Recursively call nested elements."""
@@ -120,46 +168,39 @@ class OpenapiResolver(object):
         # to 'schema', 'headers' or 'parameters'
         if self.set_node_context(key, node):
             ancestor, needle = parents[-3:-1]
-            granny = parents[0] if isinstance(parents[0], str) else None
-            # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Granny is {granny}")
+            # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Parent is {parent}")
             ancestor[needle] = cb(key, node)
 
-            # We need to check both `needle` and `granny`
-            # because $ref appears in `schema` and `headers`
-            # at different nesting levels.
-            needle_alias = None
-            if needle in COMPONENTS_MAP:
-                needle_alias = COMPONENTS_MAP[needle]
-            elif granny in COMPONENTS_MAP:
-                needle_alias = COMPONENTS_MAP[granny]
+            # Get the component where to store the given item.
+            component_name = self.get_component_name(needle, parents)
 
             # Use a pre and post traversal functions.
             # - before: append the reference to yaml_components.
             # - traverse
             # - after: deepcopy the resulting item in the yaml_components
             #          then replace it with the reference in the specs
-            if needle_alias:
+            if component_name:
                 # log.info(f"needle {needle} in components_map.")
                 host, fragment = urldefrag(node)
                 fragment = fragment.strip("/")
-                self.yaml_components[needle_alias][fragment] = ancestor[needle]
+                self.yaml_components[component_name][fragment] = ancestor[needle]
 
             if isinstance(ancestor[needle], (dict, list)):
                 self.traverse(ancestor[needle], key, parents, cb)
 
-            if needle_alias:
+            if component_name:
                 # Now the node is fully resolved. I can replace it with the
                 # Deepcopy
-                self.yaml_components[needle_alias][
+                self.yaml_components[component_name][
                     fragment] = deepcopy(ancestor[needle])
                 ancestor[needle] = {"$ref": "#" +
-                                    join("/components", needle_alias, fragment)}
+                                    join("/components", component_name, fragment)}
 
     def get_yaml_reference(self, f):
         # log.info(f"Downloading {f}")
         host, fragment = urldefrag(f)
         if host not in self.yaml_cache:
-            self.yaml_cache[host] = urlopen(host).read()
+            self.yaml_cache[host] = open_file_or_url(host)
 
         f_yaml = yaml.safe_load(self.yaml_cache[host])
         if fragment.strip("/"):
@@ -220,3 +261,11 @@ class OpenapiResolver(object):
 
         return content
 
+    def dump_yaml(self, *args, **kwargs):
+        return yaml.load(self.dump(*args, **kwargs))
+
+    @staticmethod
+    def yaml_dump_pretty(openapi):
+        # Dump long lines as "|".
+        yaml.representer.SafeRepresenter.represent_scalar = my_represent_scalar
+        return yaml.dump(openapi, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
