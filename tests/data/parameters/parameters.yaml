@@ -4,3 +4,17 @@ citizen:
   description: testme
   schema:
     $ref: ../schemas/person.yaml#/Person
+limit:
+  name: limit
+  in: query
+  description: How many items to return at one time (max 100)
+  schema:
+    type: integer
+    format: int32
+sort:
+  name: sort
+  in: query
+  description: Sorting order
+  schema:
+    type: string
+    example: +name

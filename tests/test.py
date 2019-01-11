@@ -4,9 +4,18 @@ from nose import SkipTest
 from pathlib import Path
 import logging
 from collections import defaultdict
+from os import environ
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger()
+
+# To integrate with circle.ci we check the existence of
+# the CIRCLECI repo url https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables.
+REPO_URL = "https://raw.githubusercontent.com/{username}/{project}/{branch}/tests/data".format(
+    username=environ.get("CIRCLE_PROJECT_USERNAME", "ioggstream"),
+    project=environ.get("CIRCLE_PROJECT_REPONAME", "openapi-resolver"),
+    branch=environ.get("CIRCLE_BRANCH", "4-support-local-files"),
+)
 
 
 def yaml_load_file(fpath):
@@ -73,11 +82,7 @@ def test_resolve_local():
 
 
 def test_resolve_relative_2():
-    oat = {
-        "citizen": {
-            "$ref": "https://raw.githubusercontent.com/teamdigitale/openapi/1-reorganize-repo/docs/parameters/v3.yaml#/citizen"
-        }
-    }
+    oat = {"citizen": {"$ref": REPO_URL + "/parameters/parameters.yaml#/citizen"}}
     resolver = OpenapiResolver(oat)
     resolver.resolve()
     assert "schemas" in resolver.yaml_components
@@ -88,7 +93,7 @@ def test_resolve_relative_2():
 def test_resolve_relative():
     oat = {
         "429TooManyRequests": {
-            "$ref": "https://raw.githubusercontent.com/teamdigitale/openapi/1-reorganize-repo/docs/responses/v3.yaml#/429TooManyRequests"
+            "$ref": REPO_URL + "/responses/responses.yaml#/429TooManyRequests"
         }
     }
     resolver = OpenapiResolver(oat)
@@ -103,12 +108,8 @@ def test_resolve_relative():
 def test_traverse():
     oat = {
         "a": 1,
-        "list_of_refs": [
-            {"$ref": "https://teamdigitale.github.io/openapi/parameters/v3.yaml#/sort"}
-        ],
-        "object": {
-            "$ref": "https://teamdigitale.github.io/openapi/parameters/v3.yaml#/sort"
-        },
+        "list_of_refs": [{"$ref": REPO_URL + "/parameters/parameters.yaml#/sort"}],
+        "object": {"$ref": REPO_URL + "/parameters/parameters.yaml#/sort"},
     }
     resolver = OpenapiResolver(oat)
     ret = resolver.resolve()
@@ -133,7 +134,7 @@ def test_traverse():
 
 
 def test_traverse_list():
-    oat = [{"$ref": "https://teamdigitale.github.io/openapi/parameters/v3.yaml#/sort"}]
+    oat = [{"$ref": REPO_URL + "/parameters/parameters.yaml#/sort"}]
     resolver = OpenapiResolver(oat)
     ret = resolver.resolve()
     assert ret == [
@@ -151,19 +152,15 @@ def test_traverse_object():
     oas = {
         "components": {
             "parameters": {
-                "limit": {
-                    "$ref": "https://teamdigitale.github.io/openapi/parameters/v3.yaml#/limit"
-                },
-                "sort": {
-                    "$ref": "https://teamdigitale.github.io/openapi/parameters/v3.yaml#/sort"
-                },
+                "limit": {"$ref": REPO_URL + "/parameters/parameters.yaml#/limit"},
+                "sort": {"$ref": REPO_URL + "/parameters/parameters.yaml#/sort"},
             },
             "headers": {
                 "X-RateLimit-Limit": {
-                    "$ref": "https://teamdigitale.github.io/openapi/headers/v3.yaml#/X-RateLimit-Limit"
+                    "$ref": REPO_URL + "/headers/headers.yaml#/X-RateLimit-Limit"
                 },
                 "Retry-After": {
-                    "$ref": "https://teamdigitale.github.io/openapi/headers/v3.yaml#/Retry-After"
+                    "$ref": REPO_URL + "/headers/headers.yaml#/Retry-After"
                 },
             },
         }
@@ -175,9 +172,7 @@ def test_traverse_object():
 
 def test_nested_reference():
     oat = {
-        "400BadRequest": {
-            "$ref": "https://teamdigitale.github.io/openapi/responses/v3.yaml#/400BadRequest"
-        }
+        "400BadRequest": {"$ref": REPO_URL + "/responses/responses.yaml#/400BadRequest"}
     }
     resolver = OpenapiResolver(oat)
     resolver.resolve()
@@ -193,7 +188,7 @@ def test_dump():
         "components": {
             "responses": {
                 "400BadRequest": {
-                    "$ref": "https://teamdigitale.github.io/openapi/responses/v3.yaml#/400BadRequest"
+                    "$ref": REPO_URL + "/responses/responses.yaml#/400BadRequest"
                 }
             }
         },
