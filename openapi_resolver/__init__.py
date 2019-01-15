@@ -72,9 +72,16 @@ class NoAnchorDumper(yaml.dumper.SafeDumper):
         return True
 
 
+def fragment_to_keys(fragment):
+    """Split a fragment, eg. #/components/headers/Foo
+        in a list of keys ("components", "headers", "Foo")
+    """
+    return fragment.strip("#").strip("/").split("/")
+
+
 class OpenapiResolver(object):
     """Resolves an OpenAPI v3 spec file replacing
-       yaml-references and json-$ref from 
+       yaml-references and json-$ref from
        the web.
     """
 
@@ -90,11 +97,36 @@ class OpenapiResolver(object):
         self.traverse(self.openapi, cb=self.resolve_node)
         return self.openapi
 
-    def set_node_context(self, key, node):
+    def check_traverse_and_set_context(self, key, node):
+        """This method checks if we need to resolve a $ref.
+
+        Decision is based on the node (eg. if it's a remote reference, starting with http),
+        or if it's a local one.
+
+        As both local and remote references can be relative to the given file, a
+        self.context attribute is used to distinguish if the $ref is in the original
+        file or in an external source.
+
+        :param key:
+        :param node:
+        :return: True if I have to resolve the node.
+        """
         if key != '$ref':
             return False
 
         if node.startswith("#/"):  # local reference
+            try:
+                is_local_ref = finddict(self.openapi, fragment_to_keys(node))
+            except KeyError:
+                is_local_ref = False
+
+            # Don't resolve local references already in the spec.
+            if is_local_ref:
+                return False
+            # Resolve local references in external files.
+            if self.context:
+                return True
+
             return False
 
         if node.startswith("http"):  # url reference
@@ -166,9 +198,12 @@ class OpenapiResolver(object):
 
         # Resolve HTTP references adding fragments
         # to 'schema', 'headers' or 'parameters'
-        if self.set_node_context(key, node):
+        do_traverse = self.check_traverse_and_set_context(key, node)
+        # log.info(f"test node context {key}, {node}, {do_traverse}")
+        log.debug("test node context %r, %r, %r", key, node, do_traverse)
+        if do_traverse:
             ancestor, needle = parents[-3:-1]
-            # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Parent is {parent}")
+            # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Parents are {parents}")
             ancestor[needle] = cb(key, node)
 
             # Get the component where to store the given item.
@@ -205,14 +240,21 @@ class OpenapiResolver(object):
         f_yaml = yaml.safe_load(self.yaml_cache[host])
         if fragment.strip("/"):
             f_yaml = finddict(
-                f_yaml, fragment.strip("/").split("/"))
+                f_yaml, fragment_to_keys(fragment))
         return f_yaml
 
     def resolve_node(self, key, node):
         # log.info(f"Resolving {node}")
+        n = node
         if not node.startswith('http'):
-            node = urljoin(self.context, node)
-        _yaml = self.get_yaml_reference(node)
+            # Check if self.context already points to node
+            host, fragment = urldefrag(n)
+
+            if self.context and self.context.endswith(host):
+                n = urljoin(self.context, "#" + fragment)
+            else:
+                n = urljoin(self.context, node)
+        _yaml = self.get_yaml_reference(n)
         return _yaml
 
     def dump(self, remove_tags=('x-commons',)):

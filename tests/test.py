@@ -47,6 +47,19 @@ def test_yaml_reference():
     assert "schema" in ref
 
 
+def test_resolve_subreference_fix6_2():
+    fpath = Path("data/subreference.yaml")
+    oat = yaml_load_file(str(fpath))
+    resolver = OpenapiResolver(oat, str(fpath.resolve()))
+    resolver.resolve()
+    yaml_ = resolver.dump_yaml()
+    components = defaultdict(dict, yaml_.pop("components"))
+    log.debug(yaml_dump(components))
+    assert components["responses"]["429TooManyRequests"]
+    assert components["schemas"]["Problem"]
+    assert components["headers"]["Retry-After"]
+
+
 def test_resolve_subreference_fix6_1():
     oat = {
         "components": {
@@ -55,12 +68,11 @@ def test_resolve_subreference_fix6_1():
             }
         }
     }
-    fpath = Path(".")
     resolver = OpenapiResolver(oat, None)
     resolver.resolve()
     yaml_ = resolver.dump_yaml()
     components = defaultdict(dict, yaml_.pop("components"))
-    yaml_dump(components)
+    log.debug(yaml_dump(components))
     assert components["headers"]["Retry-After"]
 
 
@@ -74,7 +86,7 @@ def test_resolve_subreference_fix6():
 
     components = defaultdict(dict, yaml_.pop("components"))
     components[fpath.parent.name].update(yaml_)
-    yaml_dump(components)
+    log.debug(yaml_dump(components))
     assert components["headers"]["headers"]
 
 
@@ -89,7 +101,7 @@ def test_resolve_local_3():
 
     components = defaultdict(dict, yaml_.pop("components"))
     components[fpath.parent.name].update(yaml_)
-    yaml_dump(components)
+    log.debug(yaml_dump(components))
     assert components["schemas"]["Person"]
     assert components["parameters"]["citizen"]["schema"]
     assert components["schemas"]["TaxCode"]
@@ -106,7 +118,7 @@ def test_resolve_local_2():
 
     components = defaultdict(dict, yaml_.pop("components"))
     components[fpath.parent.name].update(yaml_)
-    yaml_dump(components)
+    log.debug(yaml_dump(components))
     assert components["headers"]["Retry-After"]
     assert components["schemas"]["Problem"]
 
