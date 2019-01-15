@@ -11,7 +11,7 @@ from six.moves.urllib.parse import urldefrag, urljoin
 from six.moves.urllib.request import urlopen
 import logging
 from collections import defaultdict
-from os.path import join, dirname
+from os.path import join, basename
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -182,7 +182,7 @@ class OpenapiResolver(object):
             if component_name:
                 # log.info(f"needle {needle} in components_map.")
                 host, fragment = urldefrag(node)
-                fragment = fragment.strip("/")
+                fragment = basename(fragment.strip("/"))
                 self.yaml_components[component_name][fragment] = ancestor[needle]
 
             if isinstance(ancestor[needle], (dict, list)):

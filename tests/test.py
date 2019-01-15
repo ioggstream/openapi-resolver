@@ -38,6 +38,46 @@ def test_resolve_file():
     assert "Problem" in out["components"]["schemas"]
 
 
+def test_yaml_reference():
+    resolver = OpenapiResolver({}, None)
+    ref = resolver.get_yaml_reference(
+        "data/headers/subheaders.yaml#/headers/Retry-After"
+    )
+    assert "description" in ref
+    assert "schema" in ref
+
+
+def test_resolve_subreference_fix6_1():
+    oat = {
+        "components": {
+            "headers": {
+                "X-Foo": {"$ref": "data/headers/subheaders.yaml#/headers/Retry-After"}
+            }
+        }
+    }
+    fpath = Path(".")
+    resolver = OpenapiResolver(oat, None)
+    resolver.resolve()
+    yaml_ = resolver.dump_yaml()
+    components = defaultdict(dict, yaml_.pop("components"))
+    yaml_dump(components)
+    assert components["headers"]["Retry-After"]
+
+
+def test_resolve_subreference_fix6():
+    # preserve nested objects.
+    fpath = Path("data/headers/subheaders.yaml")
+    oat = yaml_load_file(str(fpath))
+    resolver = OpenapiResolver(oat, str(fpath))
+    resolver.resolve()
+    yaml_ = resolver.dump_yaml()
+
+    components = defaultdict(dict, yaml_.pop("components"))
+    components[fpath.parent.name].update(yaml_)
+    yaml_dump(components)
+    assert components["headers"]["headers"]
+
+
 def test_resolve_local_3():
     # load files from different paths
     # and resolve relative references.
