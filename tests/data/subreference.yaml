@@ -1,0 +1,4 @@
+components:
+  "responses":
+    "X-Foo":
+      "$ref": "definitions.yaml#/responses/429TooManyRequests"
