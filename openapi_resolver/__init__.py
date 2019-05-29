@@ -304,7 +304,7 @@ class OpenapiResolver(object):
         return content
 
     def dump_yaml(self, *args, **kwargs):
-        return yaml.load(self.dump(*args, **kwargs))
+        return yaml.safe_load(self.dump(*args, **kwargs))
 
     @staticmethod
     def yaml_dump_pretty(openapi):

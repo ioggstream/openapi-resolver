@@ -14,13 +14,13 @@ log = logging.getLogger()
 REPO_URL = "https://raw.githubusercontent.com/{username}/{project}/{branch}/tests/data".format(
     username=environ.get("CIRCLE_PROJECT_USERNAME", "ioggstream"),
     project=environ.get("CIRCLE_PROJECT_REPONAME", "openapi-resolver"),
-    branch=environ.get("CIRCLE_BRANCH", "4-support-local-files"),
+    branch=environ.get("CIRCLE_BRANCH", "master"),
 )
 
 
 def yaml_load_file(fpath):
     with open(fpath) as fh:
-        return yaml.load(fh.read())
+        return yaml.safe_load(fh.read())
 
 
 def yaml_dump(dict_):
@@ -29,11 +29,11 @@ def yaml_dump(dict_):
 
 @SkipTest
 def test_resolve_file():
-    oat = yaml.load(Path("tests/data/simple.yaml").read_text())
+    oat = yaml.safe_load(Path("tests/data/simple.yaml").read_text())
     resolver = OpenapiResolver(oat)
     resolver.resolve()
 
-    out = yaml.load(resolver.dump())
+    out = yaml.safe_load(resolver.dump())
     Path("data/simple.out.yaml").write_text(resolver.dump())
     assert "Problem" in out["components"]["schemas"]
 
@@ -125,11 +125,11 @@ def test_resolve_local_2():
 
 def test_resolve_local():
     with open("testcase.yaml") as fh:
-        oat = yaml.load(fh.read())
+        oat = yaml.safe_load(fh.read())
     resolver = OpenapiResolver(oat["test_resolve_local"])
     resolver.resolve()
 
-    out = yaml.load(resolver.dump())
+    out = yaml.safe_load(resolver.dump())
     assert "Problem" in out["components"]["schemas"]
 
 
