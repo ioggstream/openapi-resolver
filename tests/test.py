@@ -103,8 +103,13 @@ def test_resolve_local_3():
     components[fpath.parent.name].update(yaml_)
     log.debug(yaml_dump(components))
     assert components["schemas"]["Person"]
+    assert (
+        components["schemas"]["Person"]["properties"]["given_name"]["$ref"]
+        == "#/components/schemas/GivenName"
+    )
     assert components["parameters"]["citizen"]["schema"]
     assert components["schemas"]["TaxCode"]
+    assert components["schemas"]["GivenName"]
 
 
 def test_resolve_local_2():
