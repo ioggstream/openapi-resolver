@@ -3,8 +3,11 @@ Person:
     tax_code:
       $ref: 'tax_code.yaml#/TaxCode'
     given_name:
-      type: string
+      $ref: '#/GivenName'
     family_name:
       type: string
   externalDocs:
     uri: https://w3id.org/italia/onto/CPV
+
+GivenName:
+  type: string

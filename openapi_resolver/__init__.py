@@ -22,7 +22,7 @@ COMPONENTS_MAP = {
     "schema": "schemas",
     "headers": "headers",
     "parameters": "parameters",
-    "responses": "responses"
+    "responses": "responses",
 }
 
 
@@ -47,7 +47,7 @@ def should_use_block(value):
 
 def my_represent_scalar(self, tag, value, style=None):
     if should_use_block(value):
-        style = '|'
+        style = "|"
     else:
         style = self.default_style
 
@@ -68,6 +68,7 @@ class NoAnchorDumper(yaml.dumper.SafeDumper):
     """A yaml Dumper that does not replace duplicate entries
        with yaml anchors.
     """
+
     def ignore_aliases(self, *args):
         return True
 
@@ -111,8 +112,8 @@ class OpenapiResolver(object):
         :param node:
         :return: True if I have to resolve the node.
         """
-        if key != '$ref':
-            return False
+        if key != "$ref":
+            return False, None
 
         if node.startswith("#/"):  # local reference
             try:
@@ -122,17 +123,16 @@ class OpenapiResolver(object):
 
             # Don't resolve local references already in the spec.
             if is_local_ref:
-                return False
+                return False, None
             # Resolve local references in external files.
             if self.context:
-                return True
+                return True, None
 
-            return False
+            return False, None
 
         if node.startswith("http"):  # url reference
             host, fragment = urldefrag(node)
-            self.context = host
-            return True
+            return True, host
 
         if node.startswith("file://"):
             raise NotImplementedError
@@ -142,21 +142,19 @@ class OpenapiResolver(object):
             if self.context.startswith("http"):
                 p = urljoin(self.context, host)
                 # log.info(f"trying to set context {p}. Was {self.context}. host is: {host}.")
-                self.context = p
-                return True
+                return True, p
 
             p = Path(self.context).parent.joinpath(host)
             # log.info(f"trying to set context {p}. Was {self.context}. host is: {host}. resolved is {p.resolve()}")
             if p.is_file():
-                self.context = str(p.resolve())
-                return True
+                return True, str(p.resolve())
             else:
                 log.warning("can't set context %r. Retains %r", p, self.context)
 
         # Remote reference should use previous
         #  context. Better should be to track
         #  nodes with their context.
-        return True
+        return True, None
 
     def get_component_name(self, needle, parents):
         # We need to check both `needle` and `granny`
@@ -172,14 +170,14 @@ class OpenapiResolver(object):
         # $ref under `schemas` should be always treated
         #  as `schemas` and added to components.
         #  Reset is_subschema when needle_alias changes.
-        if needle_alias == 'schemas':
+        if needle_alias == "schemas":
             self.is_subschema = True
         elif needle_alias is not None:
             self.is_subschema = False
 
-        return 'schemas' if self.is_subschema else needle_alias
+        return "schemas" if self.is_subschema else needle_alias
 
-    def traverse(self, node, key=ROOT_NODE, parents=None, cb=print):
+    def traverse(self, node, key=ROOT_NODE, parents=None, cb=print, context=None):
         """ Recursively call nested elements."""
 
         # Trim parents breadcrumb as 4 will suffice.
@@ -193,18 +191,23 @@ class OpenapiResolver(object):
                 parents.append(key)
             parents.append(node)
             for k, i in valuelist:
-                self.traverse(i, k, parents, cb)
+                self.traverse(i, k, parents, cb, context)
             return
 
         # Resolve HTTP references adding fragments
         # to 'schema', 'headers' or 'parameters'
-        do_traverse = self.check_traverse_and_set_context(key, node)
+        do_traverse, new_context = self.check_traverse_and_set_context(key, node)
+        # If the context changes, update the global pointer too.
+        # TODO: we would eventually get rid of self.context completely.
+        if new_context:
+            self.context = new_context
+            context = new_context
         # log.info(f"test node context {key}, {node}, {do_traverse}")
         log.debug("test node context %r, %r, %r", key, node, do_traverse)
         if do_traverse:
             ancestor, needle = parents[-3:-1]
             # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Parents are {parents}")
-            ancestor[needle] = cb(key, node)
+            ancestor[needle] = cb(key, node, context)
 
             # Get the component where to store the given item.
             component_name = self.get_component_name(needle, parents)
@@ -221,15 +224,17 @@ class OpenapiResolver(object):
                 self.yaml_components[component_name][fragment] = ancestor[needle]
 
             if isinstance(ancestor[needle], (dict, list)):
-                self.traverse(ancestor[needle], key, parents, cb)
+                self.traverse(ancestor[needle], key, parents, cb, context)
 
             if component_name:
                 # Now the node is fully resolved. I can replace it with the
                 # Deepcopy
-                self.yaml_components[component_name][
-                    fragment] = deepcopy(ancestor[needle])
-                ancestor[needle] = {"$ref": "#" +
-                                    join("/components", component_name, fragment)}
+                self.yaml_components[component_name][fragment] = deepcopy(
+                    ancestor[needle]
+                )
+                ancestor[needle] = {
+                    "$ref": "#" + join("/components", component_name, fragment)
+                }
 
     def get_yaml_reference(self, f):
         # log.info(f"Downloading {f}")
@@ -239,31 +244,31 @@ class OpenapiResolver(object):
 
         f_yaml = yaml.safe_load(self.yaml_cache[host])
         if fragment.strip("/"):
-            f_yaml = finddict(
-                f_yaml, fragment_to_keys(fragment))
+            f_yaml = finddict(f_yaml, fragment_to_keys(fragment))
         return f_yaml
 
-    def resolve_node(self, key, node):
-        # log.info(f"Resolving {node}")
+    def resolve_node(self, key, node, context):
+        """This is the callback.
+        """
+        # log.info(f"Resolving {node}, {context}")
         n = node
-        if not node.startswith('http'):
+        if not node.startswith("http"):
             # Check if self.context already points to node
             host, fragment = urldefrag(n)
 
-            if self.context and self.context.endswith(host):
-                n = urljoin(self.context, "#" + fragment)
+            if context and context.endswith(host):
+                n = urljoin(context, "#" + fragment)
             else:
-                n = urljoin(self.context, node)
+                n = urljoin(context, node)
         _yaml = self.get_yaml_reference(n)
         return _yaml
 
-    def dump(self, remove_tags=('x-commons',)):
+    def dump(self, remove_tags=("x-commons",)):
         """Dump the OpenAPI spec removing yaml anchors.
 
            Anchor removal is done via NoAnchorDumper.
         """
-        openapi_tags = ('openapi', 'info',  'servers',
-                        'tags', 'paths', 'components')
+        openapi_tags = ("openapi", "info", "servers", "tags", "paths", "components")
 
         # Dump long lines as "|".
         yaml.representer.SafeRepresenter.represent_scalar = my_represent_scalar
@@ -272,7 +277,12 @@ class OpenapiResolver(object):
 
         # If it's not a dict, just dump the standard yaml
         if not isinstance(openapi, dict):
-            return yaml.dump(openapi, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
+            return yaml.dump(
+                openapi,
+                default_flow_style=False,
+                allow_unicode=True,
+                Dumper=NoAnchorDumper,
+            )
 
         # Eventually remove some tags, eg. containing references and aliases.
         for tag in remove_tags:
@@ -282,7 +292,7 @@ class OpenapiResolver(object):
         # Add resolved schemas.
         # XXX: check if the schema hash is the same in case
         #      of multiple entries.
-        components = openapi.setdefault('components', {})
+        components = openapi.setdefault("components", {})
         for k, items in self.yaml_components.items():
             if k not in components:
                 components[k] = {}
@@ -299,7 +309,11 @@ class OpenapiResolver(object):
         content = ""
         for k in sorted_keys:
             content += yaml.dump(
-                {k: openapi[k]}, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
+                {k: openapi[k]},
+                default_flow_style=False,
+                allow_unicode=True,
+                Dumper=NoAnchorDumper,
+            )
 
         return content
 
@@ -310,4 +324,6 @@ class OpenapiResolver(object):
     def yaml_dump_pretty(openapi):
         # Dump long lines as "|".
         yaml.representer.SafeRepresenter.represent_scalar = my_represent_scalar
-        return yaml.dump(openapi, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper)
+        return yaml.dump(
+            openapi, default_flow_style=False, allow_unicode=True, Dumper=NoAnchorDumper
+        )
