@@ -43,5 +43,24 @@ You can use this module to normalize two specs before diffing, eg:
         $ diff normal-one.yaml normal-two.yaml
 
 ### By Docker
-You can also run this module using `docker`. More info here:
-- https://github.com/vlauciani/docker-openapi-resolver
+#### Build docker image
+Clone this repository, then create openapi-resolver docker image:
+```
+$ cd openapi-resolver 
+$ docker build --tag openapi-resolver . 
+```
+
+#### Prepare data
+Copy your `template.yaml` in the `volume` directory.
+
+#### Run docker container
+Run docker container from openapi-resolver image:
+```
+$ docker run -it --rm -v $(pwd)/volume:/opt/volume openapi-resolver python -m openapi_resolver /opt/volume/template.yaml /opt/volume/bundle.yaml
+```
+
+##### Docker CLI
+To override the `ENTRYPOINT` directive and enter into the Docker images, run:
+```
+$ docker run -it --rm --entrypoint=bash openapi-resolver
+```
