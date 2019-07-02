@@ -6,8 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV INITRD No
 ENV FAKE_CHROOT 1
 
-# install packages
-RUN pip install --user openapi_resolver 
+ADD . /openapi-resolver
+RUN pip install --user /openapi-resolver
 
-# Run python module
+# External volume to use for mounting openapi specs
+#  and as default workdir.
+VOLUME /code
+WORKDIR /code
+
 ENTRYPOINT ["python", "-m", "openapi_resolver"]
