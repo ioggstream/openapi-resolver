@@ -10,4 +10,4 @@ ENV FAKE_CHROOT 1
 RUN pip install --user openapi_resolver 
 
 # Run python module
-ENTRYPOIN ["python", "-m", "openapi_resolver"]
+ENTRYPOINT ["python", "-m", "openapi_resolver"]
