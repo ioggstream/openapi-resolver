@@ -11,7 +11,7 @@ from six.moves.urllib.parse import urldefrag, urljoin
 from six.moves.urllib.request import urlopen
 import logging
 from collections import defaultdict
-from os.path import join, basename
+from os.path import join, basename, normpath, abspath
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -60,6 +60,7 @@ def my_represent_scalar(self, tag, value, style=None):
 def open_file_or_url(host):
     if host.startswith("http"):
         return urlopen(host).read()
+    host = normpath(abspath(host))
     with open(host) as fh:
         return fh.read()
 

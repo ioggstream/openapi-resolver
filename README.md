@@ -16,7 +16,7 @@ Or via [circleci-local](https://circleci.com/docs/2.0/local-cli/)
 
 
 ## Usage
-### By CLI
+
 The module has an embedded script that can be run via
 
         $ python -m openapi_resolver --help
@@ -42,22 +42,18 @@ You can use this module to normalize two specs before diffing, eg:
         $ python -m openapi_resolver two.yaml normal-two.yaml
         $ diff normal-one.yaml normal-two.yaml
 
-### By Docker
-#### Build docker image
-Clone this repository, then create openapi-resolver docker image:
+## Use with docker
+
+Build the image with:
+
 ```
-$ cd openapi-resolver 
 $ docker build --tag openapi-resolver . 
 ```
 
-#### Run docker container
-Run docker container from openapi-resolver image:
-```
-docker run -it --rm -v <your_path_with_openapi.yaml>:/opt/input -v <your_output_path>:/opt/output openapi-resolver /opt/input/openapi.yaml.yaml /opt/output/bundle.yaml
-```
+then run docker mapping the openapi.yaml directory
+to the `/code` volume.
 
-##### Docker CLI
-To override the `ENTRYPOINT` directive and enter into the Docker container, run:
 ```
-$ docker run -it --rm --entrypoint=bash openapi-resolver
+docker run -it --rm -v $(dirname path-to-openapi.yaml):/code \
+    openapi-resolver /code/openapi.yaml /code/bundle.yaml
 ```
