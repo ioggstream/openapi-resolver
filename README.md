@@ -56,7 +56,7 @@ Copy your `template.yaml` in the `volume` directory.
 #### Run docker container
 Run docker container from openapi-resolver image:
 ```
-$ docker run -it --rm -v $(pwd)/volume:/opt/volume openapi-resolver python -m openapi_resolver /opt/volume/template.yaml /opt/volume/bundle.yaml
+$ docker run -it --rm -v $(pwd)/volume:/opt/volume openapi-resolver python -m openapi_resolver /opt/volume/openapi.yaml /opt/volume/bundle.yaml
 ```
 
 ##### Docker CLI
