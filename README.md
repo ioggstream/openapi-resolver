@@ -50,9 +50,6 @@ $ cd openapi-resolver
 $ docker build --tag openapi-resolver . 
 ```
 
-#### Prepare data
-Copy your `template.yaml` in the `volume` directory.
-
 #### Run docker container
 Run docker container from openapi-resolver image:
 ```
