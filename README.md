@@ -60,7 +60,7 @@ $ docker run -it --rm -v $(pwd)/volume:/opt/volume openapi-resolver python -m op
 ```
 
 ##### Docker CLI
-To override the `ENTRYPOINT` directive and enter into the Docker images, run:
+To override the `ENTRYPOINT` directive and enter into the Docker container, run:
 ```
 $ docker run -it --rm --entrypoint=bash openapi-resolver
 ```
