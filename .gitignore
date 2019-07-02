@@ -4,6 +4,9 @@
 .git
 *.egg-info
 __pycache__
+.eggs
+.idea
+.project
 
 build/
 dist/
