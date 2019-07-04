@@ -41,3 +41,19 @@ You can use this module to normalize two specs before diffing, eg:
         $ python -m openapi_resolver one.yaml normal-one.yaml
         $ python -m openapi_resolver two.yaml normal-two.yaml
         $ diff normal-one.yaml normal-two.yaml
+
+## Use with docker
+
+Build the image with:
+
+```
+$ docker build --tag openapi-resolver . 
+```
+
+then run docker mapping the openapi.yaml directory
+to the `/code` volume.
+
+```
+docker run -it --rm -v $(dirname path-to-openapi.yaml):/code \
+    openapi-resolver /code/openapi.yaml /code/bundle.yaml
+```
