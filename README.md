@@ -4,6 +4,9 @@
 
 This module recursively parses openapi specs resolving references.
 
+Note that this module *does not validate OAS spec* to avoid a long list of dependencies.
+Before bundling your spec you should use an OAS validator (eg. [openapi-spec-validator](https://github.com/p1c2u/openapi-spec-validator) to ensure they are valid.
+
 ## Test
 
 Tests run locally via 
