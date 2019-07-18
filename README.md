@@ -1,6 +1,7 @@
 # OpenAPI Resolver
 
 [![CircleCI](https://circleci.com/gh/ioggstream/openapi-resolver.svg?style=svg)](https://circleci.com/gh/ioggstream/openapi-resolver)
+[![CodeCov](https://codecov.io/gh/ioggstream/openapi-resolver/branch/master/graph/badge.svg)](https://codecov.io/gh/ioggstream/openapi-resolver)
 
 This module recursively parses openapi specs resolving references.
 
