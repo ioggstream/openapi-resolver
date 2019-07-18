@@ -1,10 +1,11 @@
-from openapi_resolver import OpenapiResolver
-import yaml
-from nose import SkipTest
-from pathlib import Path
 import logging
 from collections import defaultdict
 from os import environ
+from pathlib import Path
+
+import pytest
+import yaml
+from openapi_resolver import OpenapiResolver
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger()
@@ -27,7 +28,7 @@ def yaml_dump(dict_):
     return yaml.dump(dict(dict_), default_flow_style=0)
 
 
-@SkipTest
+@pytest.mark.skip
 def test_resolve_file():
     oat = yaml.safe_load(Path("tests/data/simple.yaml").read_text())
     resolver = OpenapiResolver(oat)
