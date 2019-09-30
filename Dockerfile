@@ -7,6 +7,7 @@ ENV INITRD No
 ENV FAKE_CHROOT 1
 
 ADD . /openapi-resolver
+RUN pip install --upgrade pip
 RUN pip install --user /openapi-resolver
 
 # External volume to use for mounting openapi specs
