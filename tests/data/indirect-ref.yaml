@@ -1,0 +1,3 @@
+schemas:
+  tax_code:
+    $ref: definitions.yaml#/schemas/TaxCode

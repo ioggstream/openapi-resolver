@@ -48,6 +48,17 @@ def test_yaml_reference():
     assert "schema" in ref
 
 
+def test_resolve_subreference_fix7_1():
+    fpath = Path("data/subreference.yaml")
+    oat = yaml_load_file(str(fpath))
+    resolver = OpenapiResolver(oat, str(fpath.resolve()))
+    resolver.resolve()
+    yaml_ = resolver.dump_yaml()
+    components = defaultdict(dict, yaml_.pop("components"))
+    log.debug(yaml_dump(components))
+    assert components["schemas"]["TaxCode"]
+
+
 def test_resolve_subreference_fix6_2():
     fpath = Path("data/subreference.yaml")
     oat = yaml_load_file(str(fpath))

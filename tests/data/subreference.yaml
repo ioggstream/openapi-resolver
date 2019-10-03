@@ -2,3 +2,6 @@ components:
   "responses":
     "X-Foo":
       "$ref": "definitions.yaml#/responses/429TooManyRequests"
+  schemas:
+    indirect_reference_test:
+      $ref: indirect-ref.yaml#/schemas/tax_code

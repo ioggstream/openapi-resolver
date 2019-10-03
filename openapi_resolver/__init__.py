@@ -167,6 +167,8 @@ class OpenapiResolver(object):
             needle_alias = COMPONENTS_MAP[needle]
         elif granny in COMPONENTS_MAP:
             needle_alias = COMPONENTS_MAP[granny]
+        elif granny in COMPONENTS_MAP.values():
+            needle_alias = granny
 
         # $ref under `schemas` should be always treated
         #  as `schemas` and added to components.
