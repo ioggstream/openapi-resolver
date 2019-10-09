@@ -167,6 +167,8 @@ class OpenapiResolver(object):
             needle_alias = COMPONENTS_MAP[needle]
         elif granny in COMPONENTS_MAP:
             needle_alias = COMPONENTS_MAP[granny]
+        elif granny in COMPONENTS_MAP.values():
+            needle_alias = granny
 
         # $ref under `schemas` should be always treated
         #  as `schemas` and added to components.
@@ -178,7 +180,9 @@ class OpenapiResolver(object):
 
         return "schemas" if self.is_subschema else needle_alias
 
-    def traverse(self, node, key=ROOT_NODE, parents=None, cb=print, context=None):
+    def traverse(
+        self, node, key=ROOT_NODE, parents=None, cb=print, context=None, depth=0
+    ):
         """ Recursively call nested elements."""
 
         # Trim parents breadcrumb as 4 will suffice.
@@ -192,7 +196,7 @@ class OpenapiResolver(object):
                 parents.append(key)
             parents.append(node)
             for k, i in valuelist:
-                self.traverse(i, k, parents, cb, context)
+                self.traverse(i, k, parents, cb, context, depth=depth + 1)
             return
 
         # Resolve HTTP references adding fragments
@@ -203,8 +207,9 @@ class OpenapiResolver(object):
         if new_context:
             self.context = new_context
             context = new_context
-        # log.info(f"test node context {key}, {node}, {do_traverse}")
+
         log.debug("test node context %r, %r, %r", key, node, do_traverse)
+
         if do_traverse:
             ancestor, needle = parents[-3:-1]
             # log.info(f"replacing: {needle} in {ancestor} with ref {node}. Parents are {parents}")
@@ -225,17 +230,25 @@ class OpenapiResolver(object):
                 self.yaml_components[component_name][fragment] = ancestor[needle]
 
             if isinstance(ancestor[needle], (dict, list)):
-                self.traverse(ancestor[needle], key, parents, cb, context)
+                self.traverse(
+                    ancestor[needle], key, parents, cb, context, depth=depth + 1
+                )
 
             if component_name:
+                new_anchor = "#" + join("/components", component_name, fragment)
+                log.debug("setting new anchor: %r", new_anchor)
+
                 # Now the node is fully resolved. I can replace it with the
-                # Deepcopy
+                # Deepcopy...
                 self.yaml_components[component_name][fragment] = deepcopy(
                     ancestor[needle]
                 )
-                ancestor[needle] = {
-                    "$ref": "#" + join("/components", component_name, fragment)
-                }
+
+                # ... and update the reference in the original part.
+                if needle == "$ref":
+                    parents[-1][needle] = new_anchor
+                else:
+                    ancestor[needle] = {"$ref": new_anchor}
 
     def get_yaml_reference(self, f):
         # log.info(f"Downloading {f}")
